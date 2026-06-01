@@ -97,6 +97,7 @@ jobs:
           --windows-product-name="NFC Writer"
           --windows-company-name="NFC Writer"
           --windows-product-version=${{ steps.version.outputs.WIN_VER }}
+          --windows-icon-from-ico=assets/icon.ico
           --output-filename=NFC-Writer_${{ steps.version.outputs.SAFE_TAG }}.exe
           --output-dir=dist
           src/nfc_writer/main.py
