@@ -87,6 +87,22 @@ class MockNFCAdapter:
         self._tag = replace(self._tag, records=[normalized])
         return self._tag
 
+    def write_uri(self, uri: str) -> NFCTag:
+        """向模拟标签写入 URI 记录。
+
+        参数:
+            uri: 要写入的 URI。
+
+        返回:
+            写入后的标签数据。
+        """
+        self._require_connection()
+        normalized = uri.strip()
+        if not normalized:
+            raise ValueError("URI cannot be empty.")
+        self._tag = replace(self._tag, records=[normalized])
+        return self._tag
+
     def _require_connection(self) -> None:
         """检查是否已连接读写器，未连接时抛出异常。
 

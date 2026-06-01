@@ -4,23 +4,27 @@ import {
   NDialogProvider,
   NIcon,
   NMessageProvider,
+  NSelect,
+  NSpin,
 } from "naive-ui";
 import {
   CardOutline,
   HardwareChipOutline,
+  OptionsOutline,
   ReaderOutline,
   TimeOutline,
 } from "@vicons/ionicons5";
-import { ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 
-import DashboardView from "./views/DashboardView.vue";
-import HistoryView from "./views/HistoryView.vue";
-import ReadView from "./views/ReadView.vue";
-import WriteView from "./views/WriteView.vue";
+import AppContent from "./AppContent.vue";
+import { useNfcStore } from "./stores/nfc";
 
 type Page = "dashboard" | "read" | "write" | "history";
 
 const activePage = ref<Page>("dashboard");
+const store = useNfcStore();
+
+onMounted(() => void store.initialize());
 
 const menuOptions = [
   { label: "仪表盘", key: "dashboard", icon: HardwareChipOutline },
@@ -28,6 +32,10 @@ const menuOptions = [
   { label: "写入", key: "write", icon: CardOutline },
   { label: "历史", key: "history", icon: TimeOutline },
 ];
+
+const adapterOptions = computed(() =>
+  store.adapters.map((a) => ({ label: a.name, value: a.id })),
+);
 
 function handleMenuSelect(key: string) {
   activePage.value = key as Page;
@@ -39,7 +47,6 @@ function handleMenuSelect(key: string) {
     <NMessageProvider>
       <NDialogProvider>
         <div class="app-layout">
-          <!-- 侧边导航栏 -->
           <aside class="sidebar">
             <div class="sidebar-brand">
               <img class="brand-icon" src="/logo.png" alt="NFC Writer" />
@@ -62,20 +69,29 @@ function handleMenuSelect(key: string) {
               </button>
             </nav>
 
+            <div class="sidebar-adapter">
+              <div class="adapter-label">
+                <NIcon :size="14"><OptionsOutline /></NIcon>
+                <span>适配器</span>
+                <NSpin v-if="store.busy" :size="12" />
+              </div>
+              <NSelect
+                v-if="adapterOptions.length > 0"
+                :value="store.status.adapter"
+                :options="adapterOptions"
+                size="small"
+                :disabled="store.busy"
+                :consistent-menu-width="false"
+                @update:value="store.setAdapter"
+              />
+            </div>
+
             <div class="sidebar-footer">
               <span class="version">v0.1.0</span>
             </div>
           </aside>
 
-          <!-- 主内容区 -->
-          <main class="main-content">
-            <Transition name="page" mode="out-in">
-              <DashboardView v-if="activePage === 'dashboard'" key="dashboard" />
-              <ReadView v-else-if="activePage === 'read'" key="read" />
-              <WriteView v-else-if="activePage === 'write'" key="write" />
-              <HistoryView v-else-if="activePage === 'history'" key="history" />
-            </Transition>
-          </main>
+          <AppContent :active-page="activePage" />
         </div>
       </NDialogProvider>
     </NMessageProvider>
@@ -83,7 +99,6 @@ function handleMenuSelect(key: string) {
 </template>
 
 <style>
-/* ── 全局重置 ── */
 *,
 *::before,
 *::after {
@@ -107,14 +122,12 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* ── 布局 ── */
 .app-layout {
   display: flex;
   height: 100vh;
   overflow: hidden;
 }
 
-/* ── 侧边栏 ── */
 .sidebar {
   width: 224px;
   flex-shrink: 0;
@@ -147,7 +160,6 @@ body {
   letter-spacing: -0.3px;
 }
 
-/* ── 导航项 ── */
 .sidebar-nav {
   display: flex;
   flex-direction: column;
@@ -206,7 +218,25 @@ body {
   transform: translateY(-50%) scaleY(1);
 }
 
-/* ── 侧边栏底部 ── */
+.sidebar-adapter {
+  padding: 12px 12px 0;
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.adapter-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--color-text-muted);
+}
+
 .sidebar-footer {
   padding: 12px 12px 0;
   border-top: 1px solid var(--color-border);
@@ -217,35 +247,6 @@ body {
   color: var(--color-text-muted);
 }
 
-/* ── 主内容 ── */
-.main-content {
-  flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
-  padding: 32px 40px;
-  background: var(--color-bg);
-}
-
-/* ── 页面切换动画 ── */
-.page-enter-active {
-  transition: all var(--transition-slow);
-}
-
-.page-leave-active {
-  transition: all 200ms ease;
-}
-
-.page-enter-from {
-  opacity: 0;
-  transform: translateY(10px);
-}
-
-.page-leave-to {
-  opacity: 0;
-  transform: translateY(-6px);
-}
-
-/* ── 滚动条 ── */
 ::-webkit-scrollbar {
   width: 6px;
 }

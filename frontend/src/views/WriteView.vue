@@ -6,7 +6,6 @@ import {
   NInput,
   NSelect,
   NTooltip,
-  useMessage,
 } from "naive-ui";
 import {
   AtOutline,
@@ -19,15 +18,11 @@ import {
   TextOutline,
   WifiOutline,
 } from "@vicons/ionicons5";
-import { computed, ref, watch, type Component } from "vue";
+import { computed, ref, type Component } from "vue";
 
-import { useNfc } from "../composables/useNfc";
+import { useNfcStore } from "../stores/nfc";
 
-const { busy, connectedReader, notice, error, writeText } = useNfc();
-const message = useMessage();
-
-watch(notice, (v) => { if (v) message.success(v); });
-watch(error, (v) => { if (v) message.error(v); });
+const store = useNfcStore();
 
 interface RecordType {
   id: string;
@@ -113,7 +108,7 @@ const currentPayload = computed(() => {
 });
 
 const canWrite = computed(() => {
-  if (!connectedReader.value) return false;
+  if (!store.connectedReader) return false;
   if (selectedType.value.id === "miniprogram") {
     return mpAppid.value.length > 0 && mpPath.value.length > 0 && !mpPathError.value;
   }
@@ -130,8 +125,14 @@ async function handleWrite() {
   if (!canWrite.value) return;
   const text = currentPayload.value;
   if (!text) return;
-  await writeText(text);
-  if (!error.value) {
+
+  if (selectedType.value.id === "url") {
+    await store.writeUri(text);
+  } else {
+    await store.writeText(text);
+  }
+
+  if (!store.error) {
     writeSuccess.value = true;
     setTimeout(() => (writeSuccess.value = false), 2000);
   }
@@ -293,7 +294,7 @@ async function handleWrite() {
       <NButton
         type="primary"
         size="large"
-        :loading="busy"
+        :loading="store.busy"
         :disabled="!canWrite"
         block
         @click="handleWrite"
