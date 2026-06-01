@@ -1,159 +1,265 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import {
+  NConfigProvider,
+  NDialogProvider,
+  NIcon,
+  NMessageProvider,
+} from "naive-ui";
+import {
+  CardOutline,
+  HardwareChipOutline,
+  ReaderOutline,
+  TimeOutline,
+} from "@vicons/ionicons5";
+import { ref } from "vue";
 
-import { getBridge, unwrap } from "./services/bridge";
-import type { NFCReader, NFCStatus, NFCTag } from "./types/nfc";
+import DashboardView from "./views/DashboardView.vue";
+import HistoryView from "./views/HistoryView.vue";
+import ReadView from "./views/ReadView.vue";
+import WriteView from "./views/WriteView.vue";
 
-const bridge = getBridge();
+type Page = "dashboard" | "read" | "write" | "history";
 
-const readers = ref<NFCReader[]>([]);
-const status = ref<NFCStatus>({ adapter: "mock", connectedReaderId: null });
-const tag = ref<NFCTag | null>(null);
-const payload = ref("Hello from NFC Writer");
-const busy = ref(false);
-const error = ref("");
-const notice = ref("");
+const activePage = ref<Page>("dashboard");
 
-const selectedReaderId = computed(() => status.value.connectedReaderId ?? readers.value[0]?.id ?? "");
-const connectedReader = computed(() =>
-  readers.value.find((reader) => reader.id === status.value.connectedReaderId),
-);
+const menuOptions = [
+  { label: "仪表盘", key: "dashboard", icon: HardwareChipOutline },
+  { label: "读取", key: "read", icon: ReaderOutline },
+  { label: "写入", key: "write", icon: CardOutline },
+  { label: "历史", key: "history", icon: TimeOutline },
+];
 
-async function runTask(task: () => Promise<void>, successMessage = "") {
-  busy.value = true;
-  error.value = "";
-  notice.value = "";
-  try {
-    await task();
-    notice.value = successMessage;
-  } catch (caught) {
-    error.value = caught instanceof Error ? caught.message : "Unexpected operation failure.";
-  } finally {
-    busy.value = false;
-  }
+function handleMenuSelect(key: string) {
+  activePage.value = key as Page;
 }
-
-async function refreshReaders() {
-  readers.value = await unwrap(await bridge.list_readers());
-  status.value = await unwrap(await bridge.status());
-}
-
-async function connect(readerId: string) {
-  await runTask(async () => {
-    const reader = await unwrap(await bridge.connect(readerId));
-    status.value.connectedReaderId = reader.id;
-    await refreshReaders();
-  }, "Reader connected.");
-}
-
-async function disconnect() {
-  await runTask(async () => {
-    status.value = await unwrap(await bridge.disconnect());
-    tag.value = null;
-    await refreshReaders();
-  }, "Reader disconnected.");
-}
-
-async function readTag() {
-  await runTask(async () => {
-    tag.value = await unwrap(await bridge.read_tag());
-  }, "Tag read complete.");
-}
-
-async function writeText() {
-  await runTask(async () => {
-    tag.value = await unwrap(await bridge.write_text(payload.value));
-  }, "Text record written.");
-}
-
-onMounted(() => {
-  void runTask(refreshReaders);
-});
 </script>
 
 <template>
-  <main class="app-shell">
-    <section class="hero">
-      <div>
-        <p class="eyebrow">Desktop NFC Console</p>
-        <h1>NFC Writer</h1>
-        <p class="lede">Read tags, write text records, and swap hardware adapters behind one pywebview bridge.</p>
-      </div>
-      <div class="status-cluster" aria-live="polite">
-        <span class="status-pill" :data-active="Boolean(connectedReader)">
-          {{ connectedReader ? "Connected" : "No reader" }}
-        </span>
-        <span class="muted">Adapter: {{ status.adapter }}</span>
-      </div>
-    </section>
+  <NConfigProvider>
+    <NMessageProvider>
+      <NDialogProvider>
+        <div class="app-layout">
+          <!-- 侧边导航栏 -->
+          <aside class="sidebar">
+            <div class="sidebar-brand">
+              <img class="brand-icon" src="/logo.png" alt="NFC Writer" />
+              <span class="brand-text">NFC Writer</span>
+            </div>
 
-    <section class="workspace" aria-label="NFC workspace">
-      <div class="panel">
-        <div class="panel-heading">
-          <div>
-            <h2>Readers</h2>
-            <p>Select the active NFC reader.</p>
-          </div>
-          <button type="button" class="ghost-button" :disabled="busy" @click="runTask(refreshReaders)">Refresh</button>
+            <nav class="sidebar-nav">
+              <button
+                v-for="item in menuOptions"
+                :key="item.key"
+                class="nav-item"
+                :class="{ active: activePage === item.key }"
+                @click="handleMenuSelect(item.key)"
+              >
+                <NIcon :size="20" class="nav-icon">
+                  <component :is="item.icon" />
+                </NIcon>
+                <span class="nav-label">{{ item.label }}</span>
+                <div class="nav-indicator" />
+              </button>
+            </nav>
+
+            <div class="sidebar-footer">
+              <span class="version">v0.1.0</span>
+            </div>
+          </aside>
+
+          <!-- 主内容区 -->
+          <main class="main-content">
+            <Transition name="page" mode="out-in">
+              <DashboardView v-if="activePage === 'dashboard'" key="dashboard" />
+              <ReadView v-else-if="activePage === 'read'" key="read" />
+              <WriteView v-else-if="activePage === 'write'" key="write" />
+              <HistoryView v-else-if="activePage === 'history'" key="history" />
+            </Transition>
+          </main>
         </div>
-
-        <div v-if="readers.length === 0" class="empty-state">No NFC readers found.</div>
-        <div v-else class="reader-list">
-          <button
-            v-for="reader in readers"
-            :key="reader.id"
-            type="button"
-            class="reader-row"
-            :class="{ selected: reader.id === selectedReaderId }"
-            :disabled="busy"
-            @click="connect(reader.id)"
-          >
-            <span>{{ reader.name }}</span>
-            <small>{{ reader.connected ? "Active" : reader.id }}</small>
-          </button>
-        </div>
-
-        <button type="button" class="danger-button" :disabled="busy || !connectedReader" @click="disconnect">
-          Disconnect
-        </button>
-      </div>
-
-      <div class="panel">
-        <div class="panel-heading">
-          <div>
-            <h2>Tag</h2>
-            <p>Read the presented tag before writing.</p>
-          </div>
-          <button type="button" class="primary-button" :disabled="busy || !connectedReader" @click="readTag">
-            Read
-          </button>
-        </div>
-
-        <div v-if="tag" class="tag-card">
-          <span class="muted">UID</span>
-          <strong>{{ tag.uid }}</strong>
-          <span class="muted">Records</span>
-          <p v-for="(record, index) in tag.records" :key="index">{{ record }}</p>
-        </div>
-        <div v-else class="empty-state">No tag data loaded.</div>
-      </div>
-
-      <div class="panel write-panel">
-        <div class="panel-heading">
-          <div>
-            <h2>Write Text</h2>
-            <p>Create a simple text record for the active tag.</p>
-          </div>
-        </div>
-        <textarea v-model="payload" :disabled="busy" rows="6" aria-label="Text payload" />
-        <button type="button" class="primary-button" :disabled="busy || !connectedReader" @click="writeText">
-          Write
-        </button>
-      </div>
-    </section>
-
-    <p v-if="busy" class="feedback">Working...</p>
-    <p v-else-if="error" class="feedback error" role="alert">{{ error }}</p>
-    <p v-else-if="notice" class="feedback success">{{ notice }}</p>
-  </main>
+      </NDialogProvider>
+    </NMessageProvider>
+  </NConfigProvider>
 </template>
+
+<style>
+/* ── 全局重置 ── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: "Plus Jakarta Sans", "SF Pro Display", -apple-system,
+    BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei UI", sans-serif;
+  background: var(--color-bg);
+  color: var(--color-text);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── 布局 ── */
+.app-layout {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ── 侧边栏 ── */
+.sidebar {
+  width: 224px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface);
+  border-right: 1px solid var(--color-border);
+  padding: 24px 12px;
+  user-select: none;
+}
+
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 12px 28px;
+}
+
+.brand-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  object-fit: cover;
+}
+
+.brand-text {
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--color-text);
+  letter-spacing: -0.3px;
+}
+
+/* ── 导航项 ── */
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+
+.nav-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border: none;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-normal);
+  overflow: hidden;
+}
+
+.nav-item:hover {
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+.nav-item.active {
+  background: var(--color-primary-bg);
+  color: var(--color-primary);
+}
+
+.nav-icon {
+  transition: transform var(--transition-fast);
+}
+
+.nav-item:hover .nav-icon {
+  transform: scale(1.1);
+}
+
+.nav-indicator {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%) scaleY(0);
+  width: 3px;
+  height: 18px;
+  border-radius: 0 3px 3px 0;
+  background: var(--color-primary);
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.nav-item.active .nav-indicator {
+  transform: translateY(-50%) scaleY(1);
+}
+
+/* ── 侧边栏底部 ── */
+.sidebar-footer {
+  padding: 12px 12px 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.version {
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+/* ── 主内容 ── */
+.main-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 32px 40px;
+  background: var(--color-bg);
+}
+
+/* ── 页面切换动画 ── */
+.page-enter-active {
+  transition: all var(--transition-slow);
+}
+
+.page-leave-active {
+  transition: all 200ms ease;
+}
+
+.page-enter-from {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+.page-leave-to {
+  opacity: 0;
+  transform: translateY(-6px);
+}
+
+/* ── 滚动条 ── */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-border-hover);
+}
+</style>
