@@ -1,0 +1,109 @@
+# 文件名: build.yml
+# 创建日期: 2026-06-01
+# 功能描述: GitHub Actions 构建与发布工作流，使用 Nuitka 打包为单文件 EXE。
+
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-2022
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      # ── 阶段 1：构建 Vue 前端 ──
+      - name: 安装 pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: 安装 Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: 安装前端依赖
+        working-directory: ./frontend
+        run: pnpm install --frozen-lockfile
+
+      - name: 构建前端
+        working-directory: ./frontend
+        run: pnpm build
+
+      - name: 验证前端产物
+        run: test -d frontend/dist
+
+      # ── 阶段 2：Python 环境 ──
+      - name: 安装 uv
+        uses: astral-sh/setup-uv@v8.1.0
+        with:
+          enable-cache: true
+
+      - name: 安装 Python
+        run: uv python install 3.12
+
+      - name: 安装 Python 依赖
+        run: uv sync --all-extras --dev
+
+      # ── 阶段 3：ccache 加速 ──
+      - name: 配置 ccache
+        uses: hendrikmuhs/ccache-action@v1.2.23
+        with:
+          key: ${{ runner.os }}-nuitka
+
+      # ── 阶段 4：版本号处理 ──
+      - name: 解析版本号
+        id: version
+        shell: bash
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          # 去掉 v 前缀和 +build 元数据
+          SEMVER="${TAG#v}"
+          SEMVER="${SEMVER%%+*}"
+          # 提取基础版本 (x.y.z)
+          BASE="${SEMVER%%-*}"
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$BASE"
+          # 提取 RC 号作为第 4 版本分量
+          RC="0"
+          if [[ "$SEMVER" == *"-rc."* ]]; then
+            RC="${SEMVER#*-rc.}"
+            RC="${RC%%[-+]*}"
+          fi
+          WIN_VER="${MAJOR}.${MINOR}.${PATCH}.${RC}"
+          echo "TAG=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "SAFE_TAG=${SEMVER}" >> "$GITHUB_OUTPUT"
+          echo "WIN_VER=${WIN_VER}" >> "$GITHUB_OUTPUT"
+
+      # ── 阶段 5：Nuitka 打包 ──
+      - name: Nuitka 构建
+        run: >
+          uv run nuitka
+          --mingw64
+          --standalone
+          --onefile
+          --windows-console-mode=disable
+          --remove-output
+          --include-package=nfc_writer
+          --include-data-dir=frontend/dist=frontend/dist
+          --windows-file-version=${{ steps.version.outputs.WIN_VER }}
+          --windows-product-name="NFC Writer"
+          --windows-company-name="NFC Writer"
+          --windows-product-version=${{ steps.version.outputs.WIN_VER }}
+          --output-filename=NFC-Writer_${{ steps.version.outputs.SAFE_TAG }}.exe
+          --output-dir=dist
+          src/nfc_writer/main.py
+
+      # ── 阶段 6：发布到 GitHub Releases ──
+      - name: 发布到 GitHub Releases
+        uses: softprops/action-gh-release@v3
+        with:
+          files: dist/*.exe
+          generate_release_notes: true

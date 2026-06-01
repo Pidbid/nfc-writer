@@ -1,0 +1,264 @@
+:root {
+  color-scheme: light;
+  font-family:
+    "Segoe UI",
+    "Microsoft YaHei UI",
+    system-ui,
+    sans-serif;
+  background: #f4f1ea;
+  color: #17201b;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+button,
+textarea {
+  font: inherit;
+}
+
+button {
+  border: 0;
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.56;
+}
+
+.app-shell {
+  min-height: 100vh;
+  padding: 32px;
+  background:
+    linear-gradient(135deg, rgb(250 248 242 / 95%), rgb(232 240 234 / 92%)),
+    radial-gradient(circle at top right, rgb(238 92 64 / 20%), transparent 32rem);
+}
+
+.hero {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  max-width: 1180px;
+  margin: 0 auto 28px;
+}
+
+.eyebrow,
+.muted,
+.panel p,
+.reader-row small {
+  color: #66746b;
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+h1,
+h2,
+p {
+  margin-top: 0;
+}
+
+h1 {
+  margin-bottom: 10px;
+  font-size: clamp(2.2rem, 6vw, 4.8rem);
+  line-height: 0.96;
+}
+
+h2 {
+  margin-bottom: 4px;
+  font-size: 1.1rem;
+}
+
+.lede {
+  max-width: 620px;
+  margin-bottom: 0;
+  color: #4b5a51;
+  font-size: 1.05rem;
+}
+
+.status-cluster {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 40px;
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: #dce5dd;
+  color: #334139;
+  font-weight: 700;
+}
+
+.status-pill[data-active="true"] {
+  background: #145f45;
+  color: #ffffff;
+}
+
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(240px, 0.9fr) minmax(280px, 1fr) minmax(280px, 1.05fr);
+  gap: 18px;
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+.panel {
+  display: flex;
+  min-height: 340px;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px;
+  border: 1px solid #d8ddd5;
+  border-radius: 8px;
+  background: rgb(255 255 252 / 88%);
+  box-shadow: 0 18px 48px rgb(31 45 35 / 10%);
+}
+
+.panel-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.reader-list {
+  display: grid;
+  gap: 10px;
+}
+
+.reader-row {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  min-height: 68px;
+  padding: 14px;
+  border: 1px solid #d8ddd5;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #17201b;
+  text-align: left;
+}
+
+.reader-row.selected {
+  border-color: #145f45;
+  box-shadow: inset 4px 0 0 #145f45;
+}
+
+.primary-button,
+.ghost-button,
+.danger-button {
+  min-height: 38px;
+  padding: 0 16px;
+  border-radius: 7px;
+  font-weight: 700;
+}
+
+.primary-button {
+  background: #145f45;
+  color: #ffffff;
+}
+
+.ghost-button {
+  border: 1px solid #c8d0c7;
+  background: #ffffff;
+  color: #243129;
+}
+
+.danger-button {
+  margin-top: auto;
+  background: #7b2d26;
+  color: #ffffff;
+}
+
+.tag-card,
+.empty-state {
+  display: grid;
+  gap: 8px;
+  min-height: 168px;
+  padding: 18px;
+  border-radius: 8px;
+  background: #f6f8f4;
+}
+
+.tag-card strong {
+  overflow-wrap: anywhere;
+  font-size: 1.24rem;
+}
+
+.tag-card p {
+  margin-bottom: 0;
+  overflow-wrap: anywhere;
+}
+
+.empty-state {
+  place-items: center;
+  color: #66746b;
+  text-align: center;
+}
+
+.write-panel textarea {
+  width: 100%;
+  min-height: 150px;
+  resize: vertical;
+  padding: 14px;
+  border: 1px solid #c8d0c7;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #17201b;
+}
+
+.write-panel .primary-button {
+  align-self: flex-start;
+}
+
+.feedback {
+  max-width: 1180px;
+  min-height: 28px;
+  margin: 18px auto 0;
+  color: #4b5a51;
+  font-weight: 700;
+}
+
+.feedback.error {
+  color: #7b2d26;
+}
+
+.feedback.success {
+  color: #145f45;
+}
+
+@media (max-width: 900px) {
+  .app-shell {
+    padding: 20px;
+  }
+
+  .hero {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .workspace {
+    grid-template-columns: 1fr;
+  }
+}
